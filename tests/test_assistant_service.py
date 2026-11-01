@@ -1,22 +1,18 @@
-from fastapi.testclient import TestClient
+import pytest
+
+from medical_assistant.application.assistant_service import AssistantService
+from medical_assistant.application.exceptions import LLMProviderException
+from tests.conftest import FakeProvider, FailingProvider
 
 
-def test_ask_returns_answer(client: TestClient) -> None:
-    response = client.post(
-        "/api/assistant/ask",
-        json={"question": "How are you?"},
-    )
+def test_assistant_service_works() -> None:
+    assistant_service = AssistantService(provider=FakeProvider())
 
-    assert response.status_code == 200
-    assert response.json() == {
-        "answer": "Testowa odpowiedź na: How are you?"
-    }
+    assert assistant_service.answer(question="How are you?") == "Testowa odpowiedź na: How are you?"
 
 
-def test_ask_rejects_blank_question(client: TestClient) -> None:
-    response = client.post(
-        "/api/assistant/ask",
-        json={"question": "   "},
-    )
+def test_assistant_service_fails() -> None:
+    assistant_service = AssistantService(provider=FailingProvider())
 
-    assert response.status_code == 422
+    with pytest.raises(LLMProviderException):
+        assistant_service.answer(question="How are you?")

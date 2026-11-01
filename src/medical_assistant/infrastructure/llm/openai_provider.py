@@ -1,10 +1,7 @@
 from openai import OpenAI
 
+from medical_assistant.application.exceptions import LLMProviderException
 from medical_assistant.config.settings import Settings
-
-
-class LLMProviderException(Exception):
-    pass
 
 
 class OpenAIProvider:
