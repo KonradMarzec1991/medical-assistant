@@ -1,9 +1,10 @@
 from functools import lru_cache
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, status, HTTPException
 from pydantic import BaseModel, Field, ConfigDict
 
 from medical_assistant.application.assistant_service import AssistantService
+from medical_assistant.application.exceptions import LLMProviderException
 from medical_assistant.infrastructure.llm.openai_provider import OpenAIProvider
 from medical_assistant.config.settings import settings
 
@@ -34,5 +35,11 @@ def ask(
         request: AskRequest,
         service: AssistantService = Depends(get_assistant_service),
 ) -> AskResponse:
-    answer = service.answer(question=request.question)
-    return AskResponse(answer=answer)
+    try:
+        answer = service.answer(question=request.question)
+        return AskResponse(answer=answer)
+    except LLMProviderException:
+        raise HTTPException(
+            detail="AI service is temporarily unavailable",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
