@@ -1,4 +1,4 @@
-from medical_assisstant.infrastructure.llm.base import LLMProvider
+from medical_assistant.infrastructure.llm.base import LLMProvider
 
 
 class AssistantService:

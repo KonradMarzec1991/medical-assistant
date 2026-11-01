@@ -1,6 +1,6 @@
 from openai import OpenAI
 
-from medical_assisstant.config.settings import Settings
+from medical_assistant.config.settings import Settings
 
 
 class LLMProviderException(Exception):
