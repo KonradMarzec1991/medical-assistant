@@ -14,3 +14,15 @@ class LLMTimeoutException(Exception):
 
 class LLMConfigurationException(Exception):
     pass
+
+
+class IdempotencyConflictException(Exception):
+    """Same idempotency key used with a different request."""
+
+
+class IdempotencyInProgressException(Exception):
+    """An operation with this key is still running."""
+
+
+class IdempotencyReservationException(Exception):
+    """Could not reserve the idempotency key."""
