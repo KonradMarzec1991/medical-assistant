@@ -7,13 +7,17 @@ from medical_assistant.application.assistant_service import AssistantService
 from medical_assistant.application.exceptions import LLMProviderException
 from medical_assistant.infrastructure.llm.openai_provider import OpenAIProvider
 from medical_assistant.config.settings import settings
+from medical_assistant.infrastructure.utils.retry_executor import RetryExecutor
 
 app = FastAPI(title="Enterprise Medical Assistant")
 
 
 @lru_cache
 def get_assistant_service() -> AssistantService:
-    return AssistantService(provider=OpenAIProvider(settings=settings))
+    return AssistantService(
+        provider=OpenAIProvider(settings=settings),
+        retry_executor=RetryExecutor(max_attempts=3, backoff=1.0),
+    )
 
 
 class AskRequest(BaseModel):

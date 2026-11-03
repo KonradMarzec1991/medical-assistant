@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 
 from medical_assistant.application.assistant_service import AssistantService
 from medical_assistant.application.exceptions import LLMProviderException
+from medical_assistant.infrastructure.utils.retry_executor import RetryExecutor
 from medical_assistant.main import app, get_assistant_service
 
 
@@ -25,7 +26,10 @@ class FailingProvider:
 
 @pytest.fixture
 def assistant_service() -> AssistantService:
-    return AssistantService(provider=FakeProvider())
+    return AssistantService(
+        provider=FakeProvider(),
+        retry_executor=RetryExecutor(),
+    )
 
 
 @pytest.fixture
@@ -40,7 +44,10 @@ def client(assistant_service: AssistantService):
 
 @pytest.fixture
 def failing_client():
-    service = AssistantService(provider=FailingProvider())
+    service = AssistantService(
+        provider=FailingProvider(),
+        retry_executor=RetryExecutor(),
+    )
     app.dependency_overrides[get_assistant_service] = lambda: service
     try:
         with TestClient(app) as test_client:

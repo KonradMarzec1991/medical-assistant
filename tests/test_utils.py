@@ -3,10 +3,10 @@ from unittest.mock import Mock, patch, MagicMock, call
 import pytest
 
 from medical_assistant.application.exceptions import LLMTimeoutException, LLMConfigurationException
-from medical_assistant.infrastructure.utils import RetryExecutor
+from medical_assistant.infrastructure.utils.retry_executor import RetryExecutor
 
 
-@patch("medical_assistant.infrastructure.utils.time.sleep")
+@patch("medical_assistant.infrastructure.utils.retry_executor.time.sleep")
 def test_retries_until_success(sleep: MagicMock) -> None:
     mock = Mock(
         side_effect=[
@@ -16,7 +16,7 @@ def test_retries_until_success(sleep: MagicMock) -> None:
         ]
     )
 
-    executor = RetryExecutor(max_attempts=3, backoff=1.0)
+    executor = RetryExecutor()
     result = executor.execute(mock)
 
     assert result == "Everything is fine"
@@ -28,7 +28,7 @@ def test_retries_until_success(sleep: MagicMock) -> None:
     ])
 
 
-@patch("medical_assistant.infrastructure.utils.time.sleep")
+@patch("medical_assistant.infrastructure.utils.retry_executor.time.sleep")
 def test_raises_timeout_after_max_attempts(sleep: MagicMock) -> None:
     mock = Mock(
         side_effect=[
@@ -38,7 +38,7 @@ def test_raises_timeout_after_max_attempts(sleep: MagicMock) -> None:
         ]
     )
 
-    executor = RetryExecutor(max_attempts=3, backoff=1.0)
+    executor = RetryExecutor()
 
     with pytest.raises(LLMTimeoutException):
         executor.execute(mock)
@@ -51,7 +51,7 @@ def test_raises_timeout_after_max_attempts(sleep: MagicMock) -> None:
     ])
 
 
-@patch("medical_assistant.infrastructure.utils.time.sleep")
+@patch("medical_assistant.infrastructure.utils.retry_executor.time.sleep")
 def test_does_not_retry_configuration_error(sleep: MagicMock) -> None:
     mock = Mock(
         side_effect=[
@@ -59,7 +59,7 @@ def test_does_not_retry_configuration_error(sleep: MagicMock) -> None:
         ]
     )
 
-    executor = RetryExecutor(max_attempts=3, backoff=1.0)
+    executor = RetryExecutor()
 
     with pytest.raises(LLMConfigurationException):
         executor.execute(mock)

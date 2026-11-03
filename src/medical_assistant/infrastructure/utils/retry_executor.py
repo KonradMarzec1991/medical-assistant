@@ -8,7 +8,11 @@ T = TypeVar("T")
 
 
 class RetryExecutor:
-    def __init__(self, max_attempts: int, backoff: float = 1.0) -> None:
+    def __init__(self, max_attempts: int = 3, backoff: float = 1.0) -> None:
+        if max_attempts <= 0:
+            raise ValueError("max_attempts must be > 0")
+        if backoff < 0:
+            raise ValueError("backoff must be >= 0")
         self.max_attempts = max_attempts
         self.backoff = backoff
 
@@ -16,7 +20,7 @@ class RetryExecutor:
         for attempt in range(1, self.max_attempts + 1):
             try:
                 return func()
-            except LLMTimeoutException as e:
+            except LLMTimeoutException:
                 if attempt == self.max_attempts:
                     raise
 
