@@ -26,4 +26,3 @@ class RetryExecutor:
 
                 delay = self.backoff * (2 ** (attempt - 1))
                 time.sleep(delay)
-

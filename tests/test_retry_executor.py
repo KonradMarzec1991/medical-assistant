@@ -67,3 +67,28 @@ def test_does_not_retry_configuration_error(sleep: MagicMock) -> None:
     assert mock.call_count == 1
 
     sleep.assert_not_called()
+
+
+@patch("medical_assistant.infrastructure.utils.retry_executor.time.sleep")
+def test_retry_can_execute_operation_twice_after_timeout(sleep):
+    operation_count = 0
+
+    def simulate_provider_call():
+        nonlocal operation_count
+
+        operation_count += 1
+
+        if operation_count == 1:
+            raise LLMTimeoutException("Connection timeout")
+
+        return "Generated answer"
+
+    mock_provider = Mock(side_effect=simulate_provider_call)
+
+    executor = RetryExecutor(max_attempts=2, backoff=1.0)
+    result = executor.execute(mock_provider)
+
+    assert result == "Generated answer"
+    assert mock_provider.call_count == 2
+    assert operation_count == 2
+    sleep.assert_called_once_with(1.0)
