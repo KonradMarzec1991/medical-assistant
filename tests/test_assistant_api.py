@@ -33,3 +33,18 @@ def test_ask_returns_503_when_provider_fails(failing_client: TestClient) -> None
     assert response.json() == {
         "detail": "AI service is temporarily unavailable"
     }
+
+
+def test_ask_returns_answer_after_retries(retry_client) -> None:
+    client, provider = retry_client
+    response = client.post(
+        "/api/assistant/ask",
+        json={"question": "How are you?"},
+    )
+
+    assert provider.generate.call_count == 3
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {
+        "answer": "Everything is fine"
+    }

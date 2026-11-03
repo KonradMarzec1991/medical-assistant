@@ -1,8 +1,11 @@
+from unittest.mock import Mock
+
 import pytest
+from _pytest.monkeypatch import MonkeyPatch
 from fastapi.testclient import TestClient
 
 from medical_assistant.application.assistant_service import AssistantService
-from medical_assistant.application.exceptions import LLMProviderException
+from medical_assistant.application.exceptions import LLMProviderException, LLMTimeoutException
 from medical_assistant.infrastructure.utils.retry_executor import RetryExecutor
 from medical_assistant.main import app, get_assistant_service
 
@@ -14,7 +17,7 @@ class FakeProvider:
 
     def generate(self, system_prompt: str, user_prompt: str) -> str:
         self.system_prompt = system_prompt
-        self.system_prompt = user_prompt
+        self.user_prompt = user_prompt
 
         return f"Testowa odpowiedź na: {user_prompt}"
 
@@ -52,5 +55,34 @@ def failing_client():
     try:
         with TestClient(app) as test_client:
             yield test_client
+    finally:
+        app.dependency_overrides.pop(get_assistant_service, None)
+
+
+@pytest.fixture
+def retry_client(monkeypatch: MonkeyPatch):
+    provider = FakeProvider()
+    provider.generate = Mock(
+        side_effect=[
+            LLMTimeoutException("Timeout 1"),
+            LLMTimeoutException("Timeout 2"),
+            "Everything is fine",
+        ]
+    )
+
+    service = AssistantService(
+        provider=provider,
+        retry_executor=RetryExecutor(),
+    )
+
+    monkeypatch.setattr(
+        "medical_assistant.infrastructure.utils.retry_executor.time.sleep",
+        lambda _: None,
+    )
+
+    app.dependency_overrides[get_assistant_service] = lambda: service
+    try:
+        with TestClient(app) as test_client:
+            yield test_client, provider
     finally:
         app.dependency_overrides.pop(get_assistant_service, None)
