@@ -5,9 +5,10 @@ from pydantic import BaseModel, Field, ConfigDict
 
 from medical_assistant.application.assistant_service import AssistantService
 from medical_assistant.application.exceptions import LLMProviderException
+from medical_assistant.application.retry_executor import RetryExecutor
 from medical_assistant.infrastructure.llm.openai_provider import OpenAIProvider
 from medical_assistant.config.settings import settings
-from medical_assistant.infrastructure.utils.retry_executor import RetryExecutor
+
 
 app = FastAPI(title="Enterprise Medical Assistant")
 

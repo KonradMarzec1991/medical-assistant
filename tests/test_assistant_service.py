@@ -2,7 +2,8 @@ import pytest
 
 from medical_assistant.application.assistant_service import AssistantService
 from medical_assistant.application.exceptions import LLMProviderException
-from medical_assistant.infrastructure.utils.retry_executor import RetryExecutor
+from medical_assistant.application.retry_executor import RetryExecutor
+
 from tests.conftest import FakeProvider, FailingProvider
 
 

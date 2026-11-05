@@ -6,7 +6,8 @@ from fastapi.testclient import TestClient
 
 from medical_assistant.application.assistant_service import AssistantService
 from medical_assistant.application.exceptions import LLMProviderException, LLMTimeoutException
-from medical_assistant.infrastructure.utils.retry_executor import RetryExecutor
+from medical_assistant.application.retry_executor import RetryExecutor
+
 from medical_assistant.main import app, get_assistant_service
 
 
@@ -76,7 +77,7 @@ def retry_client(monkeypatch: MonkeyPatch):
     )
 
     monkeypatch.setattr(
-        "medical_assistant.infrastructure.utils.retry_executor.time.sleep",
+        "medical_assistant.application.retry_executor.time.sleep",
         lambda _: None,
     )
 

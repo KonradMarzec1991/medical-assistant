@@ -3,10 +3,10 @@ from unittest.mock import Mock, patch, MagicMock, call
 import pytest
 
 from medical_assistant.application.exceptions import LLMTimeoutException, LLMConfigurationException
-from medical_assistant.infrastructure.utils.retry_executor import RetryExecutor
+from medical_assistant.application.retry_executor import RetryExecutor
 
 
-@patch("medical_assistant.infrastructure.utils.retry_executor.time.sleep")
+@patch("medical_assistant.application.retry_executor.time.sleep")
 def test_retries_until_success(sleep: MagicMock) -> None:
     mock = Mock(
         side_effect=[
@@ -28,7 +28,7 @@ def test_retries_until_success(sleep: MagicMock) -> None:
     ])
 
 
-@patch("medical_assistant.infrastructure.utils.retry_executor.time.sleep")
+@patch("medical_assistant.application.retry_executor.time.sleep")
 def test_raises_timeout_after_max_attempts(sleep: MagicMock) -> None:
     mock = Mock(
         side_effect=[
@@ -51,7 +51,7 @@ def test_raises_timeout_after_max_attempts(sleep: MagicMock) -> None:
     ])
 
 
-@patch("medical_assistant.infrastructure.utils.retry_executor.time.sleep")
+@patch("medical_assistant.application.retry_executor.time.sleep")
 def test_does_not_retry_configuration_error(sleep: MagicMock) -> None:
     mock = Mock(
         side_effect=[
@@ -69,7 +69,7 @@ def test_does_not_retry_configuration_error(sleep: MagicMock) -> None:
     sleep.assert_not_called()
 
 
-@patch("medical_assistant.infrastructure.utils.retry_executor.time.sleep")
+@patch("medical_assistant.application.retry_executor.time.sleep")
 def test_retry_can_execute_operation_twice_after_timeout(sleep):
     operation_count = 0
 

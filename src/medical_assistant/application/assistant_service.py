@@ -1,5 +1,5 @@
-from medical_assistant.infrastructure.llm.base import LLMProvider
-from medical_assistant.infrastructure.utils.retry_executor import RetryExecutor
+from medical_assistant.application.ports.llm_provider import LLMProvider
+from medical_assistant.application.retry_executor import RetryExecutor
 
 
 class AssistantService:
