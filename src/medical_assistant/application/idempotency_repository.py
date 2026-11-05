@@ -1,4 +1,5 @@
-from typing import Protocol, Optional
+from threading import Lock
+from typing import Protocol
 from dataclasses import dataclass
 from enum import Enum
 
@@ -30,19 +31,23 @@ class IdempotencyRepository(Protocol):
 class InMemoryIdempotencyRepository:
     def __init__(self) -> None:
         self._records: dict[str, IdempotencyRecord] = {}
+        self._lock = Lock()
 
     def get(self, key) -> IdempotencyRecord | None:
-        return self._records.get(key)
+        with self._lock:
+            return self._records.get(key)
 
     def create_if_not_exists(self, key: str, record: IdempotencyRecord) -> bool:
-        if key in self._records:
-            return False
+        with self._lock:
+            if key in self._records:
+                return False
 
-        self._records[key] = record
-        return True
+            self._records[key] = record
+            return True
 
     def update(self, key: str, record: IdempotencyRecord) -> None:
-        if key not in self._records:
-            raise KeyError
+        with self._lock:
+            if key not in self._records:
+                raise KeyError
 
-        self._records[key] = record
+            self._records[key] = record

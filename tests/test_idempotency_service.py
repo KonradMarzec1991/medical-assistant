@@ -1,19 +1,21 @@
 from unittest.mock import Mock
 
+from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
+
 import pytest
 
+from medical_assistant.application.idempotency_service import IdempotencyService
+from medical_assistant.application.idempotency_repository import (
+    InMemoryIdempotencyRepository,
+    IdempotencyRecord,
+    IdempotencyStatus,
+)
 from medical_assistant.application.exceptions import (
     IdempotencyConflictException,
     IdempotencyInProgressException,
     LLMTimeoutException
 )
-from medical_assistant.application.idempotency_repository import (
-    InMemoryIdempotencyRepository,
-    IdempotencyRecord,
-    IdempotencyStatus
-)
-from medical_assistant.application.idempotency_service import IdempotencyService
-
 
 
 def test_execute_returns_cached_response():
@@ -122,18 +124,10 @@ class RaceConditionRepository:
             status=IdempotencyStatus.IN_PROGRESS,
         )
 
-    def create_if_not_exists(
-        self,
-        key: str,
-        record: IdempotencyRecord,
-    ) -> bool:
+    def create_if_not_exists(self, key: str, record: IdempotencyRecord) -> bool:
         return False
 
-    def update(
-        self,
-        key: str,
-        record: IdempotencyRecord,
-    ) -> None:
+    def update(self, key: str, record: IdempotencyRecord,) -> None:
         raise AssertionError("update should not be called")
 
 
@@ -152,3 +146,62 @@ def test_race_condition():
 
     assert repository.get_calls == 2
     operation.assert_not_called()
+
+
+class RaceyRepository:
+
+    def __init__(self):
+        self._records = {}
+
+    def get(self, key: str) -> IdempotencyRecord | None:
+        return self._records.get(key)
+
+    def create_if_not_exists(
+        self,
+        key: str,
+        record: IdempotencyRecord,
+    ) -> bool:
+        if key in self._records:
+            return False
+
+        self._records[key] = record
+        return True
+
+    def update(self, key: str, record: IdempotencyRecord) -> None:
+        self._records[key] = record
+
+
+def test_concurrent_requests_execute_operation_only_once():
+    repository = RaceyRepository()
+    service = IdempotencyService(repository)
+
+    operation_count = 0
+    operation_lock = Lock()
+
+    def operation():
+        nonlocal operation_count
+
+        with operation_lock:
+            operation_count += 1
+
+        return "Generated answer"
+
+    def execute():
+        try:
+            return service.execute(
+                key="request-123",
+                request_hash="hash-abc",
+                operation=operation,
+            )
+        except IdempotencyInProgressException:
+            return "IN_PROGRESS"
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [
+            executor.submit(execute),
+            executor.submit(execute),
+        ]
+
+        results = [future.result() for future in futures]
+
+    assert operation_count == 1
