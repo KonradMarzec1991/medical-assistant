@@ -3,10 +3,9 @@ import json
 import redis
 
 from medical_assistant.application.idempotency_repository import (
-    IdempotencyRepository,
-    IdempotencyRecord, IdempotencyStatus,
+    IdempotencyRecord,
+    IdempotencyStatus,
 )
-
 
 
 class RedisIdempotencyRepository:
@@ -21,11 +20,23 @@ class RedisIdempotencyRepository:
             return IdempotencyRecord(**data)
         return None
 
-    def create_if_not_exists(self, key: str, record: IdempotencyRecord) -> str | None:
+    def create_if_not_exists(self, key: str, record: IdempotencyRecord) -> bool:
         result = self.client.set(
             name=key,
             value=json.dumps(asdict(record)),
-            nx=True
+            nx=True,
+            ex=5 * 60
         )
 
         return result is not None
+
+    def update(self, key: str, record: IdempotencyRecord) -> None:
+        result = self.client.set(
+            name=key,
+            value=json.dumps(asdict(record)),
+            xx=True,
+            ex=24 * 60 * 60
+        )
+
+        if result is None:
+            raise KeyError(key)
