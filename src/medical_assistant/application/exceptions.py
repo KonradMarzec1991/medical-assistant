@@ -4,15 +4,23 @@ class LLMProviderException(Exception):
     pass
 
 
-class LLMConnectionException(Exception):
+class LLMConnectionException(LLMProviderException):
     pass
 
 
-class LLMTimeoutException(Exception):
+class LLMTimeoutException(LLMProviderException):
     pass
 
 
-class LLMConfigurationException(Exception):
+class LLMConfigurationException(LLMProviderException):
+    pass
+
+
+class LLMRateLimitException(LLMProviderException):
+    pass
+
+
+class LLMResponseException(LLMProviderException):
     pass
 
 

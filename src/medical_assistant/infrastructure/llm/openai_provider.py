@@ -1,10 +1,10 @@
-from openai import OpenAI, APITimeoutError, APIConnectionError, AuthenticationError
+from openai import OpenAI, APITimeoutError, APIConnectionError, AuthenticationError, RateLimitError, APIStatusError
 
 from medical_assistant.application.exceptions import (
     LLMProviderException,
     LLMTimeoutException,
     LLMConnectionException,
-    LLMConfigurationException,
+    LLMConfigurationException, LLMRateLimitException, LLMResponseException,
 )
 from medical_assistant.config.settings import Settings
 
@@ -29,6 +29,10 @@ class OpenAIProvider:
             raise LLMConnectionException("LLM connection failed") from e
         except AuthenticationError as e:
             raise LLMConfigurationException("LLM authentication failed") from e
+        except RateLimitError as e:
+            raise LLMRateLimitException("LLM rate limit exceeded") from e
+        except APIStatusError as e:
+            raise LLMResponseException("LLM API returned an error") from e
 
         content = response.choices[0].message.content
         if not content:
