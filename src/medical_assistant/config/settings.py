@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     openai_api_key: str
     openai_model: str
     openai_timeout: int
+    redis_url: str = "redis://localhost:6379/0"
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,

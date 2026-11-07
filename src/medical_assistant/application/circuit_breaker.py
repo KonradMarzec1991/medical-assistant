@@ -36,11 +36,6 @@ class CircuitBreaker:
         self._lock = asyncio.Lock()
 
     async def allow_request(self) -> str | None:
-        """
-        Returns:
-            None: request rejected.
-            str: permission token identifying an admitted request.
-        """
         async with self._lock:
             now = self.clock()
 

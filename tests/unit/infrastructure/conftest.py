@@ -4,8 +4,11 @@ import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from fastapi.testclient import TestClient
 
+from medical_assistant.api.dependencies import get_idempotency_service
 from medical_assistant.application.assistant_service import AssistantService
 from medical_assistant.application.exceptions import LLMProviderException, LLMTimeoutException
+from medical_assistant.application.idempotency_repository import InMemoryIdempotencyRepository
+from medical_assistant.application.idempotency_service import IdempotencyService
 from medical_assistant.application.retry_executor import RetryExecutor
 
 from medical_assistant.main import app, get_assistant_service
@@ -37,27 +40,36 @@ def assistant_service() -> AssistantService:
 
 
 @pytest.fixture
-def client(assistant_service: AssistantService):
+def idempotency_service() -> IdempotencyService:
+    return IdempotencyService(repository=InMemoryIdempotencyRepository())
+
+
+@pytest.fixture
+def client(assistant_service: AssistantService, idempotency_service: IdempotencyService):
     app.dependency_overrides[get_assistant_service] = lambda: assistant_service
+    app.dependency_overrides[get_idempotency_service] = lambda: idempotency_service
     try:
         with TestClient(app) as client:
             yield client
     finally:
-        app.dependency_overrides.pop(get_assistant_service)
+        app.dependency_overrides.pop(get_assistant_service, None)
+        app.dependency_overrides.pop(idempotency_service, None)
 
 
 @pytest.fixture
-def failing_client():
+def failing_client(idempotency_service: IdempotencyService):
     service = AssistantService(
         provider=FailingProvider(),
         retry_executor=RetryExecutor(),
     )
     app.dependency_overrides[get_assistant_service] = lambda: service
+    app.dependency_overrides[get_idempotency_service] = lambda: idempotency_service
     try:
         with TestClient(app) as test_client:
             yield test_client
     finally:
         app.dependency_overrides.pop(get_assistant_service, None)
+        app.dependency_overrides.pop(idempotency_service, None)
 
 
 @pytest.fixture
@@ -78,7 +90,7 @@ def retry_client(monkeypatch: MonkeyPatch):
 
     monkeypatch.setattr(
         "medical_assistant.application.retry_executor.asyncio.sleep",
-        lambda _: None,
+        AsyncMock()
     )
 
     app.dependency_overrides[get_assistant_service] = lambda: service

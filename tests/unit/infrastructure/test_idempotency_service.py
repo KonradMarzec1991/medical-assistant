@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import Mock, AsyncMock
 
 from concurrent.futures import ThreadPoolExecutor
@@ -38,7 +39,7 @@ async def test_execute_returns_cached_response():
 
     assert first_response == "Generated answer"
     assert second_response == "Generated answer"
-    operation.assawaited_once()
+    operation.assert_awaited_once()
 
 
 async def test_execute_raises_conflict_when_request_hash_differs():
@@ -178,7 +179,7 @@ async def test_concurrent_requests_execute_operation_only_once():
     operation_count = 0
     operation_lock = Lock()
 
-    def operation():
+    async def operation():
         nonlocal operation_count
         with operation_lock:
             operation_count += 1
@@ -195,8 +196,6 @@ async def test_concurrent_requests_execute_operation_only_once():
         except IdempotencyInProgressException:
             return "IN_PROGRESS"
 
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = [executor.submit(execute), executor.submit(execute)]
-        results = [future.result() for future in futures]
+    await asyncio.gather(execute(), execute())
 
     assert operation_count == 1

@@ -18,7 +18,7 @@ from medical_assistant.config.settings import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.open_client = AsyncOpenAI(
+    app.state.openai_client = AsyncOpenAI(
         api_key=settings.openai_api_key,
         timeout=settings.openai_timeout,
     )
