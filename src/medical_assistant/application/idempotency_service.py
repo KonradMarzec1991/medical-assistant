@@ -1,4 +1,5 @@
-from collections.abc import Callable
+from collections.abc import Callable, Awaitable
+from typing import TypeVar
 
 from medical_assistant.application.exceptions import (
     IdempotencyConflictException,
@@ -13,25 +14,28 @@ from medical_assistant.application.idempotency_repository import (
 )
 
 
+T = TypeVar("T")
+
+
 class IdempotencyService:
     def __init__(self, repository: IdempotencyRepository) -> None:
         self.repository = repository
 
-    def execute(
+    async def execute(
         self,
         key: str,
         request_hash: str,
-        operation: Callable[[], str],
+        operation: Callable[[], Awaitable[T]],
     ) -> str:
 
         # 1. Check whether the key already exists.
-        record = self.repository.get(key)
+        record = await self.repository.get(key)
 
         if record is not None:
             return self._handle_existing_record(record, request_hash)
 
         # 2. Try to reserve the key.
-        created = self.repository.create_if_not_exists(
+        created = await self.repository.create_if_not_exists(
             key=key,
             record=IdempotencyRecord(
                 request_hash=request_hash,
@@ -41,7 +45,7 @@ class IdempotencyService:
 
         # 3. Another request may have reserved the key.
         if not created:
-            record = self.repository.get(key)
+            record = await self.repository.get(key)
 
             if record is None:
                 raise IdempotencyReservationException()
@@ -49,10 +53,10 @@ class IdempotencyService:
             return self._handle_existing_record(record, request_hash)
 
         # 4. Execute the operation.
-        response = operation()
+        response =await operation()
 
         # 5. Store the result.
-        self.repository.update(
+        await self.repository.update(
             key=key,
             record=IdempotencyRecord(
                 request_hash=request_hash,

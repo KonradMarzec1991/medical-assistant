@@ -1,5 +1,6 @@
-import time
-from collections.abc import Callable
+import asyncio
+
+from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
 from medical_assistant.application.exceptions import LLMTimeoutException
@@ -13,16 +14,17 @@ class RetryExecutor:
             raise ValueError("max_attempts must be > 0")
         if backoff < 0:
             raise ValueError("backoff must be >= 0")
+
         self.max_attempts = max_attempts
         self.backoff = backoff
 
-    def execute(self, func: Callable[[], T]) -> T:
+    async def execute(self, func: Callable[[], Awaitable[T]]) -> T:
         for attempt in range(1, self.max_attempts + 1):
             try:
-                return func()
+                return await func()
             except LLMTimeoutException:
                 if attempt == self.max_attempts:
                     raise
 
                 delay = self.backoff * (2 ** (attempt - 1))
-                time.sleep(delay)
+                await asyncio.sleep(delay)

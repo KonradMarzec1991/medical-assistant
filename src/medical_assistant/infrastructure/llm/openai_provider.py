@@ -1,7 +1,14 @@
-from openai import OpenAI, APITimeoutError, APIConnectionError, AuthenticationError, RateLimitError, APIStatusError
+from openai import (
+    APIConnectionError,
+    APIStatusError,
+    APITimeoutError,
+    AsyncOpenAI,
+    AuthenticationError,
+    RateLimitError,
+)
 
 from medical_assistant.application.exceptions import (
-    LLMProviderException,
+
     LLMTimeoutException,
     LLMConnectionException,
     LLMConfigurationException, LLMRateLimitException, LLMResponseException,
@@ -11,12 +18,12 @@ from medical_assistant.config.settings import Settings
 
 class OpenAIProvider:
     def __init__(self, settings: Settings):
-        self.client = OpenAI(api_key=settings.openai_api_key, timeout=settings.openai_timeout)
+        self.client = AsyncOpenAI(api_key=settings.openai_api_key, timeout=settings.openai_timeout)
         self.model = settings.openai_model
 
-    def generate(self, user_prompt: str, system_prompt: str) -> str:
+    async def generate(self, user_prompt: str, system_prompt: str) -> str:
         try:
-            response = self.client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -39,3 +46,6 @@ class OpenAIProvider:
             raise LLMResponseException("Model returned an empty response")
 
         return content
+
+    async def close(self) -> None:
+        await self.client.close()

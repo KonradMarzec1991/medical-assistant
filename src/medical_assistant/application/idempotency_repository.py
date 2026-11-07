@@ -18,13 +18,13 @@ class IdempotencyRecord:
 
 class IdempotencyRepository(Protocol):
 
-    def get(self, key: str) -> IdempotencyRecord | None:
+    async def get(self, key: str) -> IdempotencyRecord | None:
         ...
 
-    def create_if_not_exists(self, key: str, record: IdempotencyRecord) -> bool:
+    async def create_if_not_exists(self, key: str, record: IdempotencyRecord) -> bool:
         ...
 
-    def update(self, key: str, record: IdempotencyRecord) -> None:
+    async def update(self, key: str, record: IdempotencyRecord) -> None:
         ...
 
 
@@ -33,11 +33,11 @@ class InMemoryIdempotencyRepository:
         self._records: dict[str, IdempotencyRecord] = {}
         self._lock = Lock()
 
-    def get(self, key) -> IdempotencyRecord | None:
+    async def get(self, key) -> IdempotencyRecord | None:
         with self._lock:
             return self._records.get(key)
 
-    def create_if_not_exists(self, key: str, record: IdempotencyRecord) -> bool:
+    async def create_if_not_exists(self, key: str, record: IdempotencyRecord) -> bool:
         with self._lock:
             if key in self._records:
                 return False
@@ -45,7 +45,7 @@ class InMemoryIdempotencyRepository:
             self._records[key] = record
             return True
 
-    def update(self, key: str, record: IdempotencyRecord) -> None:
+    async def update(self, key: str, record: IdempotencyRecord) -> None:
         with self._lock:
             if key not in self._records:
                 raise KeyError

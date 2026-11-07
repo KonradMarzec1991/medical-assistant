@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, AsyncMock
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -16,7 +16,7 @@ class FakeProvider:
         self.system_prompt = None
         self.user_prompt = None
 
-    def generate(self, system_prompt: str, user_prompt: str) -> str:
+    async def generate(self, system_prompt: str, user_prompt: str) -> str:
         self.system_prompt = system_prompt
         self.user_prompt = user_prompt
 
@@ -24,7 +24,7 @@ class FakeProvider:
 
 
 class FailingProvider:
-    def generate(self, system_prompt: str, user_prompt: str) -> str:
+    async def generate(self, system_prompt: str, user_prompt: str) -> str:
         raise LLMProviderException("Provider failed")
 
 
@@ -63,7 +63,7 @@ def failing_client():
 @pytest.fixture
 def retry_client(monkeypatch: MonkeyPatch):
     provider = FakeProvider()
-    provider.generate = Mock(
+    provider.generate = AsyncMock(
         side_effect=[
             LLMTimeoutException("Timeout 1"),
             LLMTimeoutException("Timeout 2"),
@@ -77,7 +77,7 @@ def retry_client(monkeypatch: MonkeyPatch):
     )
 
     monkeypatch.setattr(
-        "medical_assistant.application.retry_executor.time.sleep",
+        "medical_assistant.application.retry_executor.asyncio.sleep",
         lambda _: None,
     )
 

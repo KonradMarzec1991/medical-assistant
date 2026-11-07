@@ -1,17 +1,39 @@
 import hashlib
+from contextlib import asynccontextmanager
 from uuid import uuid4
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, status, HTTPException, Header
+from openai import AsyncOpenAI
 from pydantic import BaseModel, Field, ConfigDict
+from redis.asyncio import Redis
 
 from medical_assistant.api.dependencies import get_assistant_service, get_idempotency_service
 from medical_assistant.application.assistant_service import AssistantService
 from medical_assistant.application.exceptions import LLMProviderException, IdempotencyReservationException, \
     IdempotencyConflictException, IdempotencyInProgressException
 from medical_assistant.application.idempotency_service import IdempotencyService
+from medical_assistant.config.settings import settings
 
-app = FastAPI(title="Enterprise Medical Assistant")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.open_client = AsyncOpenAI(
+        api_key=settings.openai_api_key,
+        timeout=settings.openai_timeout,
+    )
+    app.state.redis_client = Redis.from_url(
+        settings.redis_url,
+        decode_responses=True,
+    )
+
+    yield
+
+    await app.state.openai_client.close()
+    await app.state.redis_client.aclose()
+
+
+app = FastAPI(title="Enterprise Medical Assistant", lifespan=lifespan)
 
 
 class AskRequest(BaseModel):
@@ -29,14 +51,14 @@ def health_check() -> dict[str, str]:
 
 
 @app.post("/api/assistant/ask", response_model=AskResponse)
-def ask(
+async def ask(
     request: AskRequest,
     idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
     service: AssistantService = Depends(get_assistant_service),
     idempotency_service: IdempotencyService = Depends(get_idempotency_service),
 ) -> AskResponse:
     try:
-        answer = idempotency_service.execute(
+        answer = await idempotency_service.execute(
             key=idempotency_key or str(uuid4()),
             request_hash=hashlib.sha256(
                 request.question.encode("utf-8")
