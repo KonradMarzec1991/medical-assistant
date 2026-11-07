@@ -164,7 +164,3 @@ def test_concurrent_requests_with_same_idempotency_key_return_conflict(client: T
             assert first_response.json() == {"answer": "Testowa odpowiedź"}
 
             mock_answer.assert_called_once_with("How are you?")
-
-
-def test_failure_recovery() -> None:
-    pass

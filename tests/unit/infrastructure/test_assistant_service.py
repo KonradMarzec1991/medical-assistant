@@ -4,7 +4,7 @@ from medical_assistant.application.assistant_service import AssistantService
 from medical_assistant.application.exceptions import LLMProviderException
 from medical_assistant.application.retry_executor import RetryExecutor
 
-from tests.conftest import FakeProvider, FailingProvider
+from tests.unit.infrastructure.conftest import FakeProvider, FailingProvider
 
 
 def test_assistant_service_works() -> None:

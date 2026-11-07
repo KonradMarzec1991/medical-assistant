@@ -36,6 +36,6 @@ class OpenAIProvider:
 
         content = response.choices[0].message.content
         if not content:
-            raise LLMProviderException("Model returned an empty response")
+            raise LLMResponseException("Model returned an empty response")
 
         return content
