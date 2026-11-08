@@ -36,7 +36,15 @@ class OpenAIProvider:
             params["temperature"] = request.temperature
 
         try:
-            response = await self.client.responses.create(**params)
+            if request.output_type is str:
+                response = await self.client.responses.create(**params)
+                content = response.output_text
+            else:
+                response = await self.client.responses.parse(
+                    **params,
+                    text_format=request.output_type,
+                )
+                content = response.output_parsed
 
         except APITimeoutError as e:
             raise LLMTimeoutException(
@@ -79,11 +87,14 @@ class OpenAIProvider:
                 f"Unexpected LLM response status: {response.status}"
             )
 
-        content = response.output_text
-
-        if not content:
+        if content is None:
             raise LLMResponseException(
-                "Model returned an empty response"
+                "Model did not return a valid response"
+            )
+
+        if isinstance(content, str) and not content.strip():
+            raise LLMResponseException(
+                "Model returned an empty text response"
             )
 
         usage = response.usage

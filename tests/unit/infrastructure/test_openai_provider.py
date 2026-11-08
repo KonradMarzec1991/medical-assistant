@@ -119,5 +119,5 @@ async def test_generate_raises_when_response_is_empty() -> None:
         usage=None,
     )
 
-    with pytest.raises(LLMResponseException, match="empty response"):
+    with pytest.raises(LLMResponseException, match="Model returned an empty text response"):
         await provider.generate(make_request())
