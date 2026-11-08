@@ -9,6 +9,7 @@ from openai import (
     AuthenticationError,
     RateLimitError,
 )
+from pydantic import BaseModel
 
 from medical_assistant.application.dto.llm_request import LLMRequest
 from medical_assistant.application.dto.llm_response import LLMResponse
@@ -17,7 +18,7 @@ from medical_assistant.application.exceptions import (
     LLMConnectionException,
     LLMRateLimitException,
     LLMResponseException,
-    LLMTimeoutException,
+    LLMTimeoutException, LLMIncompleteResponseException,
 )
 from medical_assistant.infrastructure.llm.openai_provider import OpenAIProvider
 
@@ -110,6 +111,45 @@ async def test_generate_returns_response_content_and_usage() -> None:
     provider.client.responses.create.assert_awaited_once()
 
 
+async def test_generate_returns_structured_response() -> None:
+    class MedicalDocument(BaseModel):
+        is_medical_document: bool
+        document_type: str
+
+    provider = make_provider()
+    expected_content = MedicalDocument(
+        is_medical_document=True,
+        document_type="policy",
+    )
+    response = SimpleNamespace(
+        status="completed",
+        usage=SimpleNamespace(input_tokens=12, output_tokens=7),
+        output_parsed=expected_content,
+    )
+    parse = AsyncMock(return_value=response)
+    provider.client.responses.parse = parse
+
+    request = LLMRequest(
+        instructions="Classify the document",
+        input="Document text",
+        model="test-model",
+        output_type=MedicalDocument,
+    )
+    result = await provider.generate(request)
+
+    assert result == LLMResponse(
+        content=expected_content,
+        input_tokens=12,
+        output_tokens=7,
+    )
+    parse.assert_awaited_once_with(
+        model="test-model",
+        instructions="Classify the document",
+        input="Document text",
+        text_format=MedicalDocument,
+    )
+
+
 async def test_generate_raises_when_response_is_empty() -> None:
     provider = make_provider()
     provider.client.responses.create.return_value = SimpleNamespace(
@@ -120,4 +160,32 @@ async def test_generate_raises_when_response_is_empty() -> None:
     )
 
     with pytest.raises(LLMResponseException, match="Model returned an empty text response"):
+        await provider.generate(make_request())
+
+
+async def test_generate_raises_when_response_is_none() -> None:
+    provider = make_provider()
+    provider.client.responses.create.return_value = SimpleNamespace(
+        status="completed",
+        output_text=None,
+        incomplete_details=None,
+        usage=None,
+    )
+
+    with pytest.raises(LLMResponseException, match="Model did not return a valid response"):
+        await provider.generate(make_request())
+
+
+async def test_generate_raises_when_response_is_incomplete() -> None:
+    provider = make_provider()
+    provider.client.responses.create.return_value = SimpleNamespace(
+        status="incomplete",
+        output_text="Partial answer",
+        incomplete_details=SimpleNamespace(
+            reason="max_output_tokens"
+        ),
+        usage=None,
+    )
+
+    with pytest.raises(LLMIncompleteResponseException, match="LLM response incomplete: max_output_tokens"):
         await provider.generate(make_request())
