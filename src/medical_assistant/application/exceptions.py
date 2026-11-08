@@ -24,6 +24,10 @@ class LLMResponseException(LLMProviderException):
     pass
 
 
+class LLMIncompleteResponseException(LLMProviderException):
+    pass
+
+
 class IdempotencyConflictException(Exception):
     """Same idempotency key used with a different request."""
 

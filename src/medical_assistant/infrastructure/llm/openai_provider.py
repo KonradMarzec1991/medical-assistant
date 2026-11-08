@@ -7,45 +7,89 @@ from openai import (
     RateLimitError,
 )
 
+from medical_assistant.application.dto.llm_request import LLMRequest
+from medical_assistant.application.dto.llm_response import LLMResponse
 from medical_assistant.application.exceptions import (
-
     LLMTimeoutException,
     LLMConnectionException,
-    LLMConfigurationException, LLMRateLimitException, LLMResponseException,
+    LLMConfigurationException,
+    LLMRateLimitException,
+    LLMResponseException, LLMIncompleteResponseException,
 )
-from medical_assistant.config.settings import Settings
 
 
 class OpenAIProvider:
-    def __init__(self, settings: Settings):
-        self.client = AsyncOpenAI(api_key=settings.openai_api_key, timeout=settings.openai_timeout)
-        self.model = settings.openai_model
+    def __init__(self, client: AsyncOpenAI):
+        self.client = client
 
-    async def generate(self, user_prompt: str, system_prompt: str) -> str:
+    async def generate(self, request: LLMRequest) -> LLMResponse:
+        params = {
+            "model": request.model,
+            "instructions": request.instructions,
+            "input": request.input,
+        }
+
+        if request.max_output_tokens is not None:
+            params["max_output_tokens"] = request.max_output_tokens
+
+        if request.temperature is not None:
+            params["temperature"] = request.temperature
+
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ]
-            )
+            response = await self.client.responses.create(**params)
+
         except APITimeoutError as e:
-            raise LLMTimeoutException("LLM request timed out") from e
+            raise LLMTimeoutException(
+                "LLM request timed out"
+            ) from e
+
         except APIConnectionError as e:
-            raise LLMConnectionException("LLM connection failed") from e
+            raise LLMConnectionException(
+                "LLM connection failed"
+            ) from e
+
         except AuthenticationError as e:
-            raise LLMConfigurationException("LLM authentication failed") from e
+            raise LLMConfigurationException(
+                "LLM authentication failed"
+            ) from e
+
         except RateLimitError as e:
-            raise LLMRateLimitException("LLM rate limit exceeded") from e
+            raise LLMRateLimitException(
+                "LLM rate limit exceeded"
+            ) from e
+
         except APIStatusError as e:
-            raise LLMResponseException("LLM API returned an error") from e
+            raise LLMResponseException(
+                "LLM API returned an error"
+            ) from e
 
-        content = response.choices[0].message.content
+        if response.status == "incomplete":
+            reason = (
+                response.incomplete_details.reason
+                if response.incomplete_details
+                else "unknown"
+            )
+
+            raise LLMIncompleteResponseException(
+                f"LLM response incomplete: {reason}"
+            )
+
+        if response.status != "completed":
+            raise LLMResponseException(
+                f"Unexpected LLM response status: {response.status}"
+            )
+
+        content = response.output_text
+
         if not content:
-            raise LLMResponseException("Model returned an empty response")
+            raise LLMResponseException(
+                "Model returned an empty response"
+            )
 
-        return content
+        usage = response.usage
 
-    async def close(self) -> None:
-        await self.client.close()
+        return LLMResponse(
+            content=content,
+            input_tokens=usage.input_tokens if usage else None,
+            output_tokens=usage.output_tokens if usage else None,
+        )
