@@ -10,10 +10,14 @@ from redis.asyncio import Redis
 
 from medical_assistant.api.dependencies import get_assistant_service, get_idempotency_service
 from medical_assistant.application.assistant_service import AssistantService
+from medical_assistant.application.document_classifier import DocumentClassifier
+from medical_assistant.application.document_processing_service import DocumentProcessingService
 from medical_assistant.application.exceptions import LLMProviderException, IdempotencyReservationException, \
     IdempotencyConflictException, IdempotencyInProgressException
 from medical_assistant.application.idempotency_service import IdempotencyService
 from medical_assistant.config.settings import settings
+from medical_assistant.infrastructure.document_processing.pymupdf_extractor import PyMuPDFDocumentExtractor
+from medical_assistant.infrastructure.llm.openai_provider import OpenAIProvider
 
 
 @asynccontextmanager
@@ -25,6 +29,13 @@ async def lifespan(app: FastAPI):
     app.state.redis_client = Redis.from_url(
         settings.redis_url,
         decode_responses=True,
+    )
+    app.state.document_processing_service = DocumentProcessingService(
+        classifier=DocumentClassifier(
+            provider=OpenAIProvider(app.state.openai_client),
+            model=settings.openai_model,
+        ),
+        extractor=PyMuPDFDocumentExtractor(),
     )
 
     yield
