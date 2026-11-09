@@ -10,6 +10,8 @@ from medical_assistant.application.exceptions import LLMProviderException, LLMTi
 from medical_assistant.application.idempotency_repository import InMemoryIdempotencyRepository
 from medical_assistant.application.idempotency_service import IdempotencyService
 from medical_assistant.application.retry_executor import RetryExecutor
+from medical_assistant.application.dto.llm_response import LLMResponse
+from medical_assistant.application.dto.llm_request import LLMRequest
 
 from medical_assistant.main import app, get_assistant_service
 
@@ -19,15 +21,15 @@ class FakeProvider:
         self.system_prompt = None
         self.user_prompt = None
 
-    async def generate(self, system_prompt: str, user_prompt: str) -> str:
-        self.system_prompt = system_prompt
-        self.user_prompt = user_prompt
+    async def generate(self, request: LLMRequest) -> LLMResponse[str]:
+        self.system_prompt = request.instructions
+        self.user_prompt = request.input
 
-        return f"Testowa odpowiedź na: {user_prompt}"
+        return LLMResponse(content=f"Testowa odpowiedź na: {request.input}", input_tokens=None, output_tokens=None)
 
 
 class FailingProvider:
-    async def generate(self, system_prompt: str, user_prompt: str) -> str:
+    async def generate(self, request: LLMRequest) -> LLMResponse[str]:
         raise LLMProviderException("Provider failed")
 
 
@@ -36,6 +38,7 @@ def assistant_service() -> AssistantService:
     return AssistantService(
         provider=FakeProvider(),
         retry_executor=RetryExecutor(),
+        model="some-model"
     )
 
 
@@ -61,6 +64,7 @@ def failing_client(idempotency_service: IdempotencyService):
     service = AssistantService(
         provider=FailingProvider(),
         retry_executor=RetryExecutor(),
+        model="some-model"
     )
     app.dependency_overrides[get_assistant_service] = lambda: service
     app.dependency_overrides[get_idempotency_service] = lambda: idempotency_service
@@ -79,13 +83,14 @@ def retry_client(monkeypatch: MonkeyPatch):
         side_effect=[
             LLMTimeoutException("Timeout 1"),
             LLMTimeoutException("Timeout 2"),
-            "Everything is fine",
+            LLMResponse(content="Everything is fine", input_tokens=None, output_tokens=None),
         ]
     )
 
     service = AssistantService(
         provider=provider,
         retry_executor=RetryExecutor(),
+        model="some-model"
     )
 
     monkeypatch.setattr(

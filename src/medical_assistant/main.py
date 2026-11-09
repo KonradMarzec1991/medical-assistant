@@ -43,6 +43,7 @@ async def lifespan(app: FastAPI):
     app.state.assistant_service = AssistantService(
         provider=app.state.llm_provider,
         retry_executor=RetryExecutor(max_attempts=3, backoff=1.0),
+        model=settings.openai_model,
     )
 
     app.state.document_processing_service = DocumentProcessingService(

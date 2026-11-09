@@ -6,11 +6,15 @@ SYSTEM_INSTRUCTIONS = "You are a cardiology assistant"
 
 
 class AssistantService:
-    def __init__(self, provider: LLMProvider, retry_executor: RetryExecutor) -> None:
+    def __init__(self, provider: LLMProvider, retry_executor: RetryExecutor, model: str) -> None:
         self.provider = provider
         self.retry_executor = retry_executor
+        self.model = model
 
     async def answer(self, question: str) -> str:
-        return await self.retry_executor.execute(
-            lambda: self.provider.generate(request=LLMRequest(instructions=SYSTEM_INSTRUCTIONS, input=question))
+        response = await self.retry_executor.execute(
+            lambda: self.provider.generate(
+                request=LLMRequest(instructions=SYSTEM_INSTRUCTIONS, input=question, model=self.model)
+            )
         )
+        return response.content

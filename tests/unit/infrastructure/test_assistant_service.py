@@ -8,7 +8,7 @@ from tests.unit.infrastructure.conftest import FakeProvider, FailingProvider
 
 
 async def test_assistant_service_works() -> None:
-    assistant_service = AssistantService(provider=FakeProvider(), retry_executor=RetryExecutor())
+    assistant_service = AssistantService(provider=FakeProvider(), retry_executor=RetryExecutor(), model="some-model")
 
     assert await assistant_service.answer(question="How are you?") == "Testowa odpowiedź na: How are you?"
 
@@ -17,6 +17,7 @@ async def test_assistant_service_fails() -> None:
     assistant_service = AssistantService(
         provider=FailingProvider(),
         retry_executor=RetryExecutor(),
+        model="some-model"
     )
 
     with pytest.raises(LLMProviderException):
