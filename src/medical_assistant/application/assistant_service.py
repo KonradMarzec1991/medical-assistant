@@ -1,5 +1,8 @@
+from medical_assistant.application.dto.llm_request import LLMRequest
 from medical_assistant.application.ports.llm_provider import LLMProvider
 from medical_assistant.application.retry_executor import RetryExecutor
+
+SYSTEM_INSTRUCTIONS = "You are a cardiology assistant"
 
 
 class AssistantService:
@@ -9,5 +12,5 @@ class AssistantService:
 
     async def answer(self, question: str) -> str:
         return await self.retry_executor.execute(
-            lambda: self.provider.generate(user_prompt=question, system_prompt="You are a cardiology assistant")
+            lambda: self.provider.generate(request=LLMRequest(instructions=SYSTEM_INSTRUCTIONS, input=question))
         )

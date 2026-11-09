@@ -12,9 +12,14 @@ from medical_assistant.api.dependencies import get_assistant_service, get_idempo
 from medical_assistant.application.assistant_service import AssistantService
 from medical_assistant.application.document_classifier import DocumentClassifier
 from medical_assistant.application.document_processing_service import DocumentProcessingService
-from medical_assistant.application.exceptions import LLMProviderException, IdempotencyReservationException, \
-    IdempotencyConflictException, IdempotencyInProgressException
+from medical_assistant.application.exceptions import (
+    LLMProviderException,
+    IdempotencyReservationException,
+    IdempotencyConflictException,
+    IdempotencyInProgressException
+)
 from medical_assistant.application.idempotency_service import IdempotencyService
+from medical_assistant.application.retry_executor import RetryExecutor
 from medical_assistant.config.settings import settings
 from medical_assistant.infrastructure.document_processing.pymupdf_extractor import PyMuPDFDocumentExtractor
 from medical_assistant.infrastructure.llm.openai_provider import OpenAIProvider
@@ -26,13 +31,23 @@ async def lifespan(app: FastAPI):
         api_key=settings.openai_api_key,
         timeout=settings.openai_timeout,
     )
+
     app.state.redis_client = Redis.from_url(
         settings.redis_url,
         decode_responses=True,
     )
+
+    # Jeden provider, współdzielony przez oba serwisy
+    app.state.llm_provider = OpenAIProvider(app.state.openai_client)
+
+    app.state.assistant_service = AssistantService(
+        provider=app.state.llm_provider,
+        retry_executor=RetryExecutor(max_attempts=3, backoff=1.0),
+    )
+
     app.state.document_processing_service = DocumentProcessingService(
         classifier=DocumentClassifier(
-            provider=OpenAIProvider(app.state.openai_client),
+            provider=app.state.llm_provider,
             model=settings.openai_model,
         ),
         extractor=PyMuPDFDocumentExtractor(),
