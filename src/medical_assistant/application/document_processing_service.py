@@ -8,4 +8,6 @@ class DocumentProcessingService:
         self._extractor = extractor
 
     async def process(self, file_content: bytes, filename: str) -> MedicalDocument:
-        ...
+        text = await self._extractor.extract(file_content)
+        content = await self._classifier.classify(text)
+        return content
